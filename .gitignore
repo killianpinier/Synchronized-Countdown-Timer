@@ -1,0 +1,15 @@
+venv/
+prod/
+
+worldtimer/secrets.py
+worldtimer/__pycache__/
+timer/__pycache__/
+timer/migrations/
+
+db.sqlite3
+todo.txt
+worldtimer2.zip
+
+.DS_Store
+.ebextensions
+dump.rdb
