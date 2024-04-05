@@ -1,5 +1,4 @@
 {% load static %}
-{% load custom_filters %}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -38,7 +37,6 @@
         <div class="container d-flex flex-column align-items-center justify-content-center">
             {% if session.selected_timer %}
                 <div class="text-center">
-                    <!-- <p style="font-size: 20vw;">{{ session.selected_timer.duration|hours }}:{{ session.selected_timer.duration|minutes }}:{{ session.selected_timer.duration|seconds }}</p> -->
                     <p style="font-size: 20vw;" id="timer" data-timer-id="{{ session.selected_timer.id }}">00:00:00</p>
                 </div>
                 <div class="row">
@@ -90,19 +88,7 @@
             const exampleModal = document.getElementById('newTimerModal')
                 if (exampleModal) {
                     exampleModal.addEventListener('show.bs.modal', event => {
-                    // Button that triggered the modal
                     const button = event.relatedTarget
-                    // // Extract info from data-bs-* attributes
-                    // const recipient = button.getAttribute('data-bs-whatever')
-                    // // If necessary, you could initiate an Ajax request here
-                    // // and then do the updating in a callback.
-
-                    // // Update the modal's content.
-                    // const modalTitle = exampleModal.querySelector('.modal-title')
-                    // const modalBodyInput = exampleModal.querySelector('.modal-body input')
-
-                    // modalTitle.textContent = `New message to ${recipient}`
-                    // modalBodyInput.value = recipient
                 })
             }
         </script>

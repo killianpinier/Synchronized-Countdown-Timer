@@ -1,6 +1,6 @@
 
 from django.utils import timezone
-from datetime import datetime
+from .models import Timer
 
 # Timer Status
 STOPPED = 0
@@ -9,14 +9,9 @@ PAUSED  = 2
 
 MILLISECONDS = 1000
 
-
-class SessionData():
-    def __init__(self, current_timer, request_status):
-        self.current_timer = current_timer
-        self.request_status = request_status
-
 class Response():
-    def __init__(self, duration, remaining, end_at, status, timestamp):
+    def __init__(self, id, duration, remaining, end_at, status, timestamp):
+        self.id = id
         self.duration = duration
         self.remaining = remaining
         self.end_at = end_at
@@ -25,24 +20,26 @@ class Response():
     
     def to_map(self):
         return {
+            "id": self.id,
             "duration": self.duration,
             "end_at": self.end_at,
             "status": self.status,
             "timestamp": self.timestamp,
             "remaining": self.remaining,
         }
-    
-    def update(self, timer, now):
-        self.duration = timer.duration.seconds
-        self.remaining = int(timer.remaining.total_seconds() * MILLISECONDS)
-        self.end_at = int(timer.end_at.timestamp() * MILLISECONDS)
-        self.status = timer.status
-        self.timestamp = int(now.timestamp() * MILLISECONDS)
 
 
+def generate_response(timer, now):
+    return Response(
+        timer.id,
+        timer.duration.seconds,
+        timer.remaining.seconds,
+        int(timer.end_at.timestamp() * 1000),
+        timer.status,
+        now,
+    )
 
-
-def update_timer(status_request, timer, response):
+def update_timer(status_request, timer):
     now = timezone.now()
     match status_request:
         case 0: # REQUEST: Stop timer
@@ -59,8 +56,23 @@ def update_timer(status_request, timer, response):
         case _:
             # TODO : Return error to page
             print("Wrong status number")
+    timer.save()
 
-    response.update(timer, now)
+def stop_all_timer(session):
+    timers = Timer.objects.filter(_session=session)
+    for timer in timers:
+        timer.status = 0
+        timer.save() # Check if there is a way to save all at once after iteration
+
+def change_selected_timer(session, timer_id):
+    timer = Timer.objects.get(pk=timer_id)
+    session.selected_timer = timer
+    session.save()
+
+def timer_end_at_field_check(timer, now):
+    if timer.end_at.timestamp()*1000 - now < 0:
+        timer.status = 0
+        timer.save()
 
 def stop_timer(timer):
     if timer.status == RUNNING or timer.status == PAUSED:
@@ -73,21 +85,13 @@ def start_timer(timer, now):
     if timer.status == STOPPED:
         timer.status = RUNNING
         timer.end_at = now + timer.duration
-        #timer.end_at = timezone.now() + timer.duration
     else:
         raise ValueError("Request to start timer but has already been Started.")
 
 def pause_timer(timer, now):
-    # TODO - Should we check if end_at > datetime.now() ?
-    #now = datetime.now()
-    #if timer.end_at.timestamp() > now.timestamp():
     timer.status = PAUSED
     timer.remaining = timezone.timedelta(seconds=timer.end_at.timestamp() - now.timestamp())
-    #timer.remaining = timezone.timedelta(seconds=timer.end_at.timestamp() - now.timestamp())
-    #else:
-    #    raise ValueError("timer.end_at is less than datetimer.now()")
 
 def resume_timer(timer, now):
     timer.status = RUNNING
     timer.end_at = now + timer.remaining
-    #timer.end_at = timezone.now() + timer.remaining

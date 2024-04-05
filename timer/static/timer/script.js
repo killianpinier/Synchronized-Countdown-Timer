@@ -20,28 +20,25 @@ function updateTimerValue() {
     timer_tag.textContent = hours + ':' + minutes + ':' + remaining_seconds;
 }
 
-function updateTimer(end_at) {
+function updateTimer(session_id, end_at) {
+    let timer_tag = document.getElementById('timer');
     let milliseconds = end_at - new Date().getTime();
     if (Math.abs(milliseconds - Math.floor(milliseconds/1000)*1000) <= 100) {
         timer_seconds = Math.floor(milliseconds/1000);
     }
 
-    if (timer_seconds < 300) {
-        let timer_tag = document.getElementById('timer');
-        timer_tag.style.color = "orange";
-    }
-
     if (timer_seconds < 120) {
-        let timer_tag = document.getElementById('timer');
         timer_tag.style.color = "red";
+    } else if (timer_seconds < 300) {
+        timer_tag.style.color = "orange";
+    } else {
+        timer_tag.style.color = "black";
     }
 
     if (timer_seconds < 0) {
         clearInterval(timer_interval);
 
-        const timer_element = document.getElementById('timer');
-        const timer_id = timer_element.getAttribute('data-timer-id');
-        const data = { action: Action.UPDATE, timer_id: timer_id, status: TimerStatus.STOPPED};
+        const data = { action: Action.UPDATE, session_id: session_id, status: TimerStatus.STOPPED};
         socket.send(JSON.stringify(data));
         timer_seconds = response.duration;
         updateTimerValue();
@@ -51,9 +48,7 @@ function updateTimer(end_at) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    const timer_element = document.getElementById('timer');
     const session_element = document.getElementById('session');
-    const timer_id = timer_element.getAttribute('data-timer-id');
     const session_id = session_element.getAttribute('data-session-id');
     const socket = new WebSocket("ws://127.0.0.1:8000/ws/timers/" + session_id + "/");
 
@@ -77,7 +72,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    sendAjaxRequest('/get_timer_info/', {timer_id: timer_id})
+    sendAjaxRequest('/get_timer_info/', {session_id: session_id})
         .then(response => {
             switch (response['status']) {
                 case TimerStatus.STOPPED: {
@@ -90,8 +85,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     break;
                 }
                 case TimerStatus.RUNNING: {
-                    timer_interval = setInterval(() => updateTimer(response["end_at"]), 100);
-                
+                    timer_interval = setInterval(() => updateTimer(session_id, response["end_at"]), 100);
+                    
                     document.getElementById('startTimerBtn').style.display = 'none';
                     document.getElementById('pauseResumeTimerBtn').style.display = 'inline-block';
                     document.getElementById('pauseResumeTimerBtn').textContent = 'Pause';
@@ -112,51 +107,35 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error(error);
-        })
+        });
+
+    
+    // ------ Set event listeners
 
     const startBtn = document.getElementById('startTimerBtn');
     startBtn.addEventListener('click', function() {
-        const data = { action: Action.UPDATE, timer_id: timer_id, status: TimerStatus.RUNNING};
+        const data = { action: Action.UPDATE, session_id: session_id, status: TimerStatus.RUNNING};
         socket.send(JSON.stringify(data));
     });
 
     const pauseResumeBtn = document.getElementById('pauseResumeTimerBtn');
     pauseResumeBtn.addEventListener('click', function() {
-        if (timer_id) {
-            const data = { action: Action.UPDATE, timer_id: timer_id, status: TimerStatus.PAUSED};
-            socket.send(JSON.stringify(data));
-        } else {
-            console.error("Timer Id not found");
-        }
+        const data = { action: Action.UPDATE, session_id: session_id, status: TimerStatus.PAUSED};
+        socket.send(JSON.stringify(data));
     });
 
     const stopBtn = document.getElementById('stopTimerBtn');
     stopBtn.addEventListener('click', function() {
-        if (timer_id) {
-            const data = { action: Action.UPDATE, timer_id: timer_id, status: TimerStatus.STOPPED};
-            socket.send(JSON.stringify(data));
-        } else {
-            console.error("Timer Id not found");
-        }
+        const data = { action: Action.UPDATE, session_id: session_id, status: TimerStatus.STOPPED};
+        socket.send(JSON.stringify(data));
     });
 
 
+    // ------ Timer management
 
-
-
-
-
-
-
-
-
-
-
-
-    // ---------
     function start_timer(response) {
-        //timer_seconds = response.remaining;
-        timer_interval = setInterval(() => updateTimer(response.end_at), 100);
+        clearInterval(timer_interval);
+        timer_interval = setInterval(() => updateTimer(session_id, response.end_at), 100);
         
         document.getElementById('startTimerBtn').style.display = 'none';
         document.getElementById('pauseResumeTimerBtn').style.display = 'inline-block';
@@ -179,6 +158,10 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('stopTimerBtn').style.display = 'none';
     }
 });
+
+
+
+// ------ Utils
 
 function sendAjaxRequest(url, data) {
     return fetch(url, {
